@@ -43,7 +43,7 @@ async function post(session, url, body, subdomain, custom_headers = {}) {
 const sessions = {}
 
 app.listen(port, () => {
-  console.log(`BTP connect listening on port ${port}. Use http://localhost:${port}/btpdump to start a new session`)
+  console.log(`BTP-connect listening on port ${port}. Use http://localhost:${port}/btpdump to start a new session`)
 })
 
 function getSession(id) {
@@ -144,3 +144,8 @@ app.get('/btpdump/:sessionid/instances', (req, res) => {
     res.sendStatus(404);
   }
 })
+
+process.on('SIGINT', function() {
+  console.log('SIGINT received');
+  process.exit();
+});
