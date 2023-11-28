@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: btp-connect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: btp-connect
+  template:
+    metadata:
+      labels:
+        app: btp-connect
+    spec:
+      containers:
+      - name: btp-connect
+        image: ghcr.io/pbochynski/btp-connect:0.0.1
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: btp-connect
+spec:
+  selector:
+    app: btp-connect
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: ClusterIP

@@ -7,9 +7,10 @@ const CLI_VERSION = "v2.54.0"
 const REFRESH_HEADER = "x-cpcli-replacementrefreshtoken"
 const ID_TOKEN_HEADER = "x-id-token"
 const SUBDOMAIN_HEADER = "x-cpcli-subdomain"
+const sessions = {}
 
-async function post(session, url, body, subdomain, custom_headers = {}) {
-  let s = getSession(session)
+async function post(sessionId, url, body, subdomain, custom_headers = {}) {
+  let s = sessions[sessionId]
   let req_headers = {
     'Accept': 'application/json',
     'Content-type': 'application/json',
@@ -29,7 +30,7 @@ async function post(session, url, body, subdomain, custom_headers = {}) {
     console.log("New refresh token:", s.refreshToken)
   }
   if (response.status == 307) {
-    return post(session, headers.get('location'), body, subdomain, { 'x-id-token': headers.get(ID_TOKEN_HEADER), 'x-cpcli-subdomain': headers.get(SUBDOMAIN_HEADER) })
+    return post(sessionId, headers.get('location'), body, subdomain, { 'x-id-token': headers.get(ID_TOKEN_HEADER), 'x-cpcli-subdomain': headers.get(SUBDOMAIN_HEADER) })
   }
 
   let data = await response.text()
@@ -40,23 +41,12 @@ async function post(session, url, body, subdomain, custom_headers = {}) {
   }
 }
 
-const sessions = {}
-
 app.listen(port, () => {
   console.log(`BTP-connect listening on port ${port}. Use http://localhost:${port}/btpdump to start a new session`)
 })
 
-function getSession(id) {
-  if (id) {
-    return sessions[id]
-  }
-  if (Object.values(sessions).length == 1) {
-    return Object.values(sessions)[0]
-  }
-}
-
-async function globalAccounts(session) {
-  let accounts = await post(session,`${CLI_SERVER}/client/${CLI_VERSION}/globalAccountList`)
+async function globalAccounts(sessionId) {
+  let accounts = await post(sessionId,`${CLI_SERVER}/client/${CLI_VERSION}/globalAccountList`)
   return accounts
 }
 
@@ -65,19 +55,19 @@ function uuidv4() {
     (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
   );
 }
-function subAccounts(sessionid,subdomain) {
+function subAccounts(sessionId,subdomain) {
   let body = { paramValues: { globalAccount: subdomain } }
-  return post(sessionid,`${CLI_SERVER}/command/${CLI_VERSION}/accounts/subaccount?list`, JSON.stringify(body), subdomain)
+  return post(sessionId,`${CLI_SERVER}/command/${CLI_VERSION}/accounts/subaccount?list`, JSON.stringify(body), subdomain)
 }
 
-function serviceInstances(sessionid, subdomain, sa) {
+function serviceInstances(sessionId, subdomain, sa) {
     let body = { paramValues: { subaccount: sa.guid } }
-    return post(sessionid,`${CLI_SERVER}/command/${CLI_VERSION}/services/instance?list`, JSON.stringify(body), subdomain)
+    return post(sessionId,`${CLI_SERVER}/command/${CLI_VERSION}/services/instance?list`, JSON.stringify(body), subdomain)
 }
 
-function serviceBindings(sessionid, subdomain, sa) {
+function serviceBindings(sessionId, subdomain, sa) {
     let body = { paramValues: { subaccount: sa.guid } }
-    return post(sessionid,`${CLI_SERVER}/command/${CLI_VERSION}/services/binding?list`, JSON.stringify(body), subdomain)
+    return post(sessionId,`${CLI_SERVER}/command/${CLI_VERSION}/services/binding?list`, JSON.stringify(body), subdomain)
 }
 
 function sso(id) {
@@ -143,6 +133,9 @@ app.get('/btpdump/:sessionid/instances', (req, res) => {
   } else {
     res.sendStatus(404);
   }
+})
+app.get('/sessions', (req, res) => {
+  res.json(Object.keys(sessions))
 })
 
 process.on('SIGINT', function() {
